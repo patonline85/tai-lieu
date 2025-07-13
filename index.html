@@ -144,6 +144,11 @@
                     }
                 });
 
+                // Ensure data is an array before attempting to iterate
+                if (!Array.isArray(data)) {
+                    throw new Error("Dữ liệu tải từ data.json không phải là một mảng. Vui lòng kiểm tra định dạng tệp.");
+                }
+
                 // Add documents to the index
                 // Using a loop to add documents one by one. For very large datasets, batching might be considered.
                 for (const doc of data) {
@@ -309,6 +314,3 @@
     </script>
 </body>
 </html>
-```javascript
-// This file is intentionally left blank.
-// All JavaScript is embedded directly in the HTML for simplicity in a single-file GitHub Pages setup.
