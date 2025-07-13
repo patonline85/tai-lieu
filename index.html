@@ -149,8 +149,10 @@
                     throw new Error("Dữ liệu tải từ data.json không phải là một mảng. Vui lòng kiểm tra định dạng tệp.");
                 }
 
+                // Store the original documents globally for later lookup
+                documents = data;
+
                 // Add documents to the index
-                // Using a loop to add documents one by one. For very large datasets, batching might be considered.
                 for (const doc of data) {
                     // Check if doc has required properties before adding to index
                     if (doc.id !== undefined && doc.title !== undefined && doc.content !== undefined) {
@@ -160,8 +162,7 @@
                     }
                 }
 
-                console.log('FlexSearch index created successfully.');
-                documents = data; // Store the original documents for display
+                console.log(`FlexSearch index created successfully with ${documents.length} documents.`);
 
             } catch (error) {
                 console.error('Error initializing FlexSearch:', error);
@@ -196,7 +197,7 @@
                 // The search method returns an array of objects, each containing the 'id' of the matching document
                 // and an array of 'field' matches.
                 const searchResults = index.search(query, {
-                    enrich: true, // Return the full document objects, not just IDs
+                    enrich: true, // Request full document objects (though we'll use our stored 'documents' array as a fallback)
                     suggest: true // Provide suggestions for partial matches
                 });
 
@@ -207,8 +208,16 @@
 
                 // Display results
                 searchResults.forEach(result => {
-                    // Each result.doc is the full document object stored in the index
-                    const doc = result.doc;
+                    // Find the full document object from our globally stored 'documents' array
+                    // This is more robust than relying solely on result.doc from FlexSearch's enrich option,
+                    // especially if there are subtle issues with how FlexSearch stores/retrieves.
+                    const doc = documents.find(d => d.id === result.id);
+
+                    if (!doc) {
+                        console.warn('Could not find full document for search result ID:', result.id, 'Skipping this result.');
+                        return; // Skip this result if the full document cannot be found
+                    }
+
                     const resultElement = document.createElement('div');
                     resultElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
                     resultElement.innerHTML = `
@@ -314,3 +323,6 @@
     </script>
 </body>
 </html>
+```javascript
+// This file is intentionally left blank.
+// All JavaScript is embedded directly in the HTML for simplicity in a single-file GitHub Pages setup.
