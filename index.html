@@ -209,30 +209,37 @@
                 // Display results
                 searchResults.forEach(searchResultItem => {
                     console.log("Processing search result item:", searchResultItem);
-                    console.log("Search result item ID:", searchResultItem.id);
+                    console.log("Search result item ID:", searchResultItem.id, "Type:", typeof searchResultItem.id);
 
                     let docToDisplay = searchResultItem.doc;
 
                     // Fallback: If for some reason searchResultItem.doc is missing or incomplete,
                     // try to find the document from our original 'documents' array using its ID.
-                    if (!docToDisplay || !docToDisplay.title || !docToDisplay.content) {
+                    if (!docToDisplay || typeof docToDisplay !== 'object' || docToDisplay === null || !('title' in docToDisplay) || !('content' in docToDisplay)) {
                         // Ensure the ID is treated as a number for consistent lookup
-                        // Check if searchResultItem.id is a valid number before parsing
                         const lookupId = typeof searchResultItem.id === 'number' ? searchResultItem.id : parseInt(searchResultItem.id);
+                        console.log("Attempting fallback lookup for ID:", lookupId, "Type:", typeof lookupId);
 
                         // Only attempt to find if lookupId is a valid number
                         if (!isNaN(lookupId)) {
-                            docToDisplay = documents.find(d => d.id === lookupId);
+                            docToDisplay = documents.find(d => {
+                                // Log the comparison for debugging ID type mismatches
+                                console.log(`Comparing d.id (${d.id}, type: ${typeof d.id}) with lookupId (${lookupId}, type: ${typeof lookupId})`);
+                                return d.id === lookupId;
+                            });
+                            console.log("Fallback lookup result:", docToDisplay);
                         } else {
                             console.warn('Invalid ID found in search result item:', searchResultItem.id, 'Cannot perform lookup in documents array.');
                         }
                     }
 
-                    // If we still don't have a valid document, log a warning and skip this result
-                    if (!docToDisplay || !docToDisplay.title || !docToDisplay.content) {
-                        console.warn('Could not find a complete document for search result ID:', searchResultItem.id, 'Skipping this result.');
+                    // Critical check right before using docToDisplay
+                    if (!docToDisplay || typeof docToDisplay !== 'object' || docToDisplay === null || !('title' in docToDisplay) || !('content' in docToDisplay)) {
+                        console.error('Final check failed: Document is still invalid or incomplete for search result ID:', searchResultItem.id, 'Document:', docToDisplay);
                         return; // Skip to the next item in the forEach loop
                     }
+
+                    console.log("Document ready for display:", docToDisplay); // Log if it passes the check
 
                     const resultElement = document.createElement('div');
                     resultElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
@@ -339,3 +346,6 @@
     </script>
 </body>
 </html>
+```javascript
+// This file is intentionally left blank.
+// All JavaScript is embedded directly in the HTML for simplicity in a single-file GitHub Pages setup.
