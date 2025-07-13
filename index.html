@@ -147,7 +147,12 @@
                 // Add documents to the index
                 // Using a loop to add documents one by one. For very large datasets, batching might be considered.
                 for (const doc of data) {
-                    index.add(doc);
+                    // Check if doc has required properties before adding to index
+                    if (doc.id !== undefined && doc.title !== undefined && doc.content !== undefined) {
+                        index.add(doc);
+                    } else {
+                        console.warn('Skipping document due to missing required properties (id, title, or content):', doc);
+                    }
                 }
 
                 console.log('FlexSearch index created successfully.');
@@ -224,8 +229,9 @@
                 });
 
             } catch (error) {
+                // Log the specific error to the console for debugging
                 console.error('Error during search:', error);
-                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi thực hiện tìm kiếm. Vui lòng kiểm tra console.</p>';
+                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi thực hiện tìm kiếm. Vui lòng kiểm tra console để biết chi tiết.</p>';
             }
         }
 
@@ -286,7 +292,7 @@
                 // Fetch your data.json file
                 // IMPORTANT: Make sure data.json is in the same directory as this HTML file,
                 // or provide the correct path.
-                const response = await fetch('./data.json'); // Changed 'data.json' to './data.json'
+                const response = await fetch('./data.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -303,3 +309,6 @@
     </script>
 </body>
 </html>
+```javascript
+// This file is intentionally left blank.
+// All JavaScript is embedded directly in the HTML for simplicity in a single-file GitHub Pages setup.
