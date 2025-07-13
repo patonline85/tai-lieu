@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trợ lý Lưu trữ Dữ liệu</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top for better content flow */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 32px;
+            width: 100%;
+            max-width: 900px;
+            margin-top: 50px; /* Add some top margin */
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin-top: 20px;
+            }
+            .search-input {
+                font-size: 1em;
+            }
+            .search-button {
+                font-size: 0.9em;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Đang tải dữ liệu và tạo chỉ mục... Vui lòng chờ.</p>
+    </div>
+
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Trợ lý Tra cứu Dữ liệu</h1>
+
+        <div class="flex flex-col sm:flex-row gap-4 mb-8">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Nhập từ khóa tìm kiếm..."
+                class="search-input flex-grow p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+            />
+            <button
+                id="searchButton"
+                class="search-button bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-md shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+                Tìm kiếm
+            </button>
+        </div>
+
+        <div id="results" class="space-y-6">
+            <!-- Search results will be displayed here -->
+            <p class="text-center text-gray-500" id="initialMessage">Nhập từ khóa và nhấn "Tìm kiếm" để bắt đầu.</p>
+        </div>
+    </div>
+
+    <!-- FlexSearch.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.compact.js"></script>
+
+    <script>
+        // Global variables for FlexSearch index and data
+        let index;
+        let documents = [];
+
+        // Get DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resultsDiv = document.getElementById('results');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const initialMessage = document.getElementById('initialMessage');
+
+        /**
+         * Initializes the FlexSearch index with the provided documents.
+         * @param {Array<Object>} data - An array of document objects, each with 'id', 'title', and 'content'.
+         */
+        async function initializeSearch(data) {
+            // Hide initial message
+            if (initialMessage) {
+                initialMessage.style.display = 'none';
+            }
+
+            // Show loading overlay
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+
+            try {
+                // Configure FlexSearch index
+                index = new FlexSearch.Document({
+                    id: "id", // Unique identifier for each document
+                    tokenize: "full", // Tokenize the entire string
+                    resolution: 9, // Higher resolution for better search quality
+                    cache: true, // Cache search results for faster repeated queries
+                    document: {
+                        index: ["title", "content"], // Fields to be indexed for searching
+                        store: ["id", "title", "content"] // Fields to be stored and returned with results
+                    }
+                });
+
+                // Add documents to the index
+                // Using a loop to add documents one by one. For very large datasets, batching might be considered.
+                for (const doc of data) {
+                    index.add(doc);
+                }
+
+                console.log('FlexSearch index created successfully.');
+                documents = data; // Store the original documents for display
+
+            } catch (error) {
+                console.error('Error initializing FlexSearch:', error);
+                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi tải dữ liệu hoặc tạo chỉ mục. Vui lòng kiểm tra console.</p>';
+            } finally {
+                // Hide loading overlay
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+        }
+
+        /**
+         * Performs a search based on the input query and displays results.
+         */
+        function performSearch() {
+            const query = searchInput.value.trim();
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            if (!query) {
+                resultsDiv.innerHTML = '<p class="text-center text-gray-500">Vui lòng nhập từ khóa để tìm kiếm.</p>';
+                return;
+            }
+
+            if (!index) {
+                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Chỉ mục tìm kiếm chưa được tải. Vui lòng thử lại sau.</p>';
+                return;
+            }
+
+            try {
+                // Perform the search
+                // The search method returns an array of objects, each containing the 'id' of the matching document
+                // and an array of 'field' matches.
+                const searchResults = index.search(query, {
+                    enrich: true, // Return the full document objects, not just IDs
+                    suggest: true // Provide suggestions for partial matches
+                });
+
+                if (searchResults.length === 0) {
+                    resultsDiv.innerHTML = `<p class="text-center text-gray-500">Không tìm thấy kết quả nào cho "${query}".</p>`;
+                    return;
+                }
+
+                // Display results
+                searchResults.forEach(result => {
+                    // Each result.doc is the full document object stored in the index
+                    const doc = result.doc;
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
+                    resultElement.innerHTML = `
+                        <h3 class="text-xl font-semibold text-blue-700 mb-2">${doc.title}</h3>
+                        <p class="text-gray-700 leading-relaxed max-h-40 overflow-hidden text-ellipsis relative">
+                            ${doc.content.substring(0, 300)}...
+                            <span class="absolute bottom-0 right-0 bg-gradient-to-l from-gray-50 to-transparent w-1/3 h-full pointer-events-none"></span>
+                        </p>
+                        <button class="view-content-btn mt-3 text-blue-600 hover:text-blue-800 font-medium" data-id="${doc.id}">Xem toàn bộ nội dung</button>
+                    `;
+                    resultsDiv.appendChild(resultElement);
+                });
+
+                // Add event listeners for "View Full Content" buttons
+                document.querySelectorAll('.view-content-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const docId = parseInt(event.target.dataset.id);
+                        const doc = documents.find(d => d.id === docId);
+                        if (doc) {
+                            showFullContentModal(doc.title, doc.content);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error during search:', error);
+                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi thực hiện tìm kiếm. Vui lòng kiểm tra console.</p>';
+            }
+        }
+
+        /**
+         * Displays a modal with the full content of a document.
+         * @param {string} title - The title of the document.
+         * @param {string} content - The full content of the document.
+         */
+        function showFullContentModal(title, content) {
+            // Create modal elements
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modalOverlay.id = 'fullContentModalOverlay';
+
+            const modalContent = document.createElement('div');
+            modalContent.className = 'bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative';
+
+            const modalTitle = document.createElement('h2');
+            modalTitle.className = 'text-2xl font-bold text-gray-800 mb-4 pr-10'; // Added pr-10 for close button spacing
+            modalTitle.textContent = title;
+
+            const modalBody = document.createElement('p');
+            modalBody.className = 'text-gray-700 whitespace-pre-wrap'; // Use pre-wrap to preserve formatting
+            modalBody.textContent = content;
+
+            const closeButton = document.createElement('button');
+            closeButton.className = 'absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold';
+            closeButton.innerHTML = '&times;'; // 'x' icon
+
+            // Append elements
+            modalContent.appendChild(modalTitle);
+            modalContent.appendChild(closeButton);
+            modalContent.appendChild(modalBody);
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+
+            // Close modal on button click or overlay click
+            closeButton.addEventListener('click', () => modalOverlay.remove());
+            modalOverlay.addEventListener('click', (event) => {
+                if (event.target === modalOverlay) {
+                    modalOverlay.remove();
+                }
+            });
+        }
+
+
+        // Event listeners
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Fetch data and initialize search on window load
+        window.onload = async () => {
+            try {
+                // Fetch your data.json file
+                // IMPORTANT: Make sure data.json is in the same directory as this HTML file,
+                // or provide the correct path.
+                const response = await fetch('./data.json'); // Changed 'data.json' to './data.json'
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                await initializeSearch(data);
+            } catch (error) {
+                console.error('Error fetching data.json:', error);
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none'; // Hide loading overlay on error
+                }
+                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Không thể tải tệp dữ liệu (data.json). Vui lòng đảm bảo tệp tồn tại và đúng định dạng.</p>';
+            }
+        };
+    </script>
+</body>
+</html>
