@@ -3,349 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trợ lý Lưu trữ Dữ liệu</title>
-    <!-- Tailwind CSS CDN for styling -->
+    <title>Ứng dụng tìm kiếm tài liệu</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
+            background-color: #f3f4f6;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Align to top for better content flow */
+            align-items: flex-start;
             min-height: 100vh;
             padding: 20px;
             box-sizing: border-box;
         }
         .container {
             background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            padding: 32px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 900px;
-            margin-top: 50px; /* Add some top margin */
+            max-width: 800px;
         }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
+        .search-input {
+            border: 2px solid #e5e7eb;
+            padding: 12px 15px;
+            border-radius: 10px;
             width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            flex-direction: column;
-            font-size: 1.2em;
-            color: #333;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
         }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .search-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+        .search-button:hover {
+            background-color: #2563eb;
+        }
+        .document-card {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
             margin-bottom: 15px;
+            transition: transform 0.2s ease-in-out;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
         }
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                margin-top: 20px;
-            }
-            .search-input {
-                font-size: 1em;
-            }
-            .search-button {
-                font-size: 0.9em;
-                padding: 10px 15px;
-            }
+        .document-title {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.25rem; /* text-xl */
+            margin-bottom: 10px;
+        }
+        .document-content {
+            color: #4b5563;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            max-height: 150px; /* Giới hạn chiều cao cho nội dung */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 5; /* Số dòng hiển thị */
+            -webkit-box-orient: vertical;
+        }
+        .no-results {
+            text-align: center;
+            color: #6b7280;
+            font-size: 1.1rem;
+            padding: 30px;
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
         }
     </style>
 </head>
 <body>
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <p>Đang tải dữ liệu và tạo chỉ mục... Vui lòng chờ.</p>
-    </div>
-
     <div class="container">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Trợ lý Tra cứu Dữ liệu</h1>
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Tra cứu tài liệu</h1>
 
-        <div class="flex flex-col sm:flex-row gap-4 mb-8">
-            <input
-                type="text"
-                id="searchInput"
-                placeholder="Nhập từ khóa tìm kiếm..."
-                class="search-input flex-grow p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-            />
-            <button
-                id="searchButton"
-                class="search-button bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-md shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-                Tìm kiếm
-            </button>
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <input type="text" id="searchInput" class="search-input flex-grow" placeholder="Nhập từ khóa tìm kiếm...">
+            <button id="searchButton" class="search-button">Tìm kiếm</button>
         </div>
 
-        <div id="results" class="space-y-6">
-            <!-- Search results will be displayed here -->
-            <p class="text-center text-gray-500" id="initialMessage">Nhập từ khóa và nhấn "Tìm kiếm" để bắt đầu.</p>
+        <div id="loadingIndicator" class="loading-indicator hidden">
+            Đang tìm kiếm...
+        </div>
+
+        <div id="resultsContainer">
+            <!-- Kết quả tìm kiếm sẽ hiển thị ở đây -->
+        </div>
+
+        <div id="messageBox" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                <p id="messageText" class="text-gray-800 text-lg mb-4"></p>
+                <button id="messageCloseButton" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Đóng</button>
+            </div>
         </div>
     </div>
-
-    <!-- FlexSearch.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.compact.js"></script>
 
     <script>
-        // Global variables for FlexSearch index and data
-        let index;
-        let documents = [];
+        let documents = []; // Biến để lưu trữ dữ liệu từ data.json
 
-        // Get DOM elements
-        const searchInput = document.getElementById('searchInput');
-        const searchButton = document.getElementById('searchButton');
-        const resultsDiv = document.getElementById('results');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const initialMessage = document.getElementById('initialMessage');
+        // Hàm hiển thị thông báo tùy chỉnh
+        function showMessage(message) {
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
 
-        /**
-         * Initializes the FlexSearch index with the provided documents.
-         * @param {Array<Object>} data - An array of document objects, each with 'id', 'title', and 'content'.
-         */
-        async function initializeSearch(data) {
-            // Hide initial message
-            if (initialMessage) {
-                initialMessage.style.display = 'none';
-            }
+        // Đóng hộp thoại thông báo
+        document.getElementById('messageCloseButton').addEventListener('click', () => {
+            document.getElementById('messageBox').classList.add('hidden');
+        });
 
-            // Show loading overlay
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'flex';
-            }
-
+        // Tải dữ liệu từ data.json khi trang được tải
+        async function loadDocuments() {
             try {
-                // Configure FlexSearch index
-                index = new FlexSearch.Document({
-                    id: "id", // Unique identifier for each document
-                    tokenize: "full", // Tokenize the entire string
-                    resolution: 9, // Higher resolution for better search quality
-                    cache: true, // Cache search results for faster repeated queries
-                    document: {
-                        index: ["title", "content"], // Fields to be indexed for searching
-                        store: ["id", "title", "content"] // Fields to be stored and returned with results
-                    }
-                });
-
-                // Ensure data is an array before attempting to iterate
-                if (!Array.isArray(data)) {
-                    throw new Error("Dữ liệu tải từ data.json không phải là một mảng. Vui lòng kiểm tra định dạng tệp.");
+                const response = await fetch('data.json');
+                if (!response.ok) {
+                    throw new Error(`Không thể tải data.json: ${response.statusText}`);
                 }
-
-                // Store the original documents globally for later lookup
-                documents = data;
-
-                // Add documents to the index
-                for (const doc of data) {
-                    // Check if doc has required properties before adding to index
-                    if (doc.id !== undefined && doc.title !== undefined && doc.content !== undefined) {
-                        index.add(doc);
-                    } else {
-                        console.warn('Skipping document due to missing required properties (id, title, or content):', doc);
-                    }
-                }
-
-                console.log(`FlexSearch index created successfully with ${documents.length} documents.`);
-
+                documents = await response.json();
             } catch (error) {
-                console.error('Error initializing FlexSearch:', error);
-                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi tải dữ liệu hoặc tạo chỉ mục. Vui lòng kiểm tra console.</p>';
-            } finally {
-                // Hide loading overlay
-                if (loadingOverlay) {
-                    loadingOverlay.style.display = 'none';
-                }
+                console.error('Lỗi khi tải tài liệu:', error);
+                showMessage('Không thể tải dữ liệu tài liệu. Vui lòng thử lại sau.');
             }
         }
 
-        /**
-         * Performs a search based on the input query and displays results.
-         */
-        function performSearch() {
-            const query = searchInput.value.trim();
-            resultsDiv.innerHTML = ''; // Clear previous results
+        // Hàm tìm kiếm tài liệu
+        function searchDocuments() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            resultsContainer.innerHTML = ''; // Xóa kết quả cũ
+            loadingIndicator.classList.remove('hidden'); // Hiển thị loading
 
-            if (!query) {
-                resultsDiv.innerHTML = '<p class="text-center text-gray-500">Vui lòng nhập từ khóa để tìm kiếm.</p>';
-                return;
-            }
+            setTimeout(() => { // Mô phỏng độ trễ tìm kiếm
+                const filteredDocuments = documents.filter(doc =>
+                    doc.title.toLowerCase().includes(searchTerm) ||
+                    doc.content.toLowerCase().includes(searchTerm)
+                );
 
-            if (!index) {
-                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Chỉ mục tìm kiếm chưa được tải. Vui lòng thử lại sau.</p>';
-                return;
-            }
+                loadingIndicator.classList.add('hidden'); // Ẩn loading
 
-            try {
-                // Perform the search
-                // The search method returns an array of objects, each containing the 'id' of the matching document
-                // and an array of 'field' matches.
-                const searchResults = index.search(query, {
-                    enrich: true, // Request full document objects (though we'll use our stored 'documents' array as a fallback)
-                    suggest: true // Provide suggestions for partial matches
-                });
-
-                if (searchResults.length === 0) {
-                    resultsDiv.innerHTML = `<p class="text-center text-gray-500">Không tìm thấy kết quả nào cho "${query}".</p>`;
-                    return;
-                }
-
-                // Display results
-                searchResults.forEach(searchResultItem => {
-                    console.log("Processing search result item:", searchResultItem);
-                    console.log("Search result item ID:", searchResultItem.id, "Type:", typeof searchResultItem.id);
-
-                    let docToDisplay = searchResultItem.doc;
-
-                    // Fallback: If for some reason searchResultItem.doc is missing or incomplete,
-                    // try to find the document from our original 'documents' array using its ID.
-                    if (!docToDisplay || typeof docToDisplay !== 'object' || docToDisplay === null || !('title' in docToDisplay) || !('content' in docToDisplay)) {
-                        // Ensure the ID is treated as a number for consistent lookup
-                        const lookupId = typeof searchResultItem.id === 'number' ? searchResultItem.id : parseInt(searchResultItem.id);
-                        console.log("Attempting fallback lookup for ID:", lookupId, "Type:", typeof lookupId);
-
-                        // Only attempt to find if lookupId is a valid number
-                        if (!isNaN(lookupId)) {
-                            docToDisplay = documents.find(d => {
-                                // Log the comparison for debugging ID type mismatches
-                                console.log(`Comparing d.id (${d.id}, type: ${typeof d.id}) with lookupId (${lookupId}, type: ${typeof lookupId})`);
-                                return d.id === lookupId;
-                            });
-                            console.log("Fallback lookup result:", docToDisplay);
-                        } else {
-                            console.warn('Invalid ID found in search result item:', searchResultItem.id, 'Cannot perform lookup in documents array.');
-                        }
-                    }
-
-                    // Critical check right before using docToDisplay
-                    if (!docToDisplay || typeof docToDisplay !== 'object' || docToDisplay === null || !('title' in docToDisplay) || !('content' in docToDisplay)) {
-                        console.error('Final check failed: Document is still invalid or incomplete for search result ID:', searchResultItem.id, 'Document:', docToDisplay);
-                        return; // Skip to the next item in the forEach loop
-                    }
-
-                    console.log("Document ready for display:", docToDisplay); // Log if it passes the check
-
-                    const resultElement = document.createElement('div');
-                    resultElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
-                    resultElement.innerHTML = `
-                        <h3 class="text-xl font-semibold text-blue-700 mb-2">${docToDisplay.title}</h3>
-                        <p class="text-gray-700 leading-relaxed max-h-40 overflow-hidden text-ellipsis relative">
-                            ${docToDisplay.content.substring(0, 300)}...
-                            <span class="absolute bottom-0 right-0 bg-gradient-to-l from-gray-50 to-transparent w-1/3 h-full pointer-events-none"></span>
-                        </p>
-                        <button class="view-content-btn mt-3 text-blue-600 hover:text-blue-800 font-medium" data-id="${docToDisplay.id}">Xem toàn bộ nội dung</button>
-                    `;
-                    resultsDiv.appendChild(resultElement);
-                });
-
-                // Add event listeners for "View Full Content" buttons
-                document.querySelectorAll('.view-content-btn').forEach(button => {
-                    button.addEventListener('click', (event) => {
-                        const docId = parseInt(event.target.dataset.id);
-                        const doc = documents.find(d => d.id === docId);
-                        if (doc) {
-                            showFullContentModal(doc.title, doc.content);
-                        }
+                if (filteredDocuments.length === 0) {
+                    resultsContainer.innerHTML = '<p class="no-results">Không tìm thấy tài liệu nào phù hợp.</p>';
+                } else {
+                    filteredDocuments.forEach(doc => {
+                        const card = document.createElement('div');
+                        card.className = 'document-card';
+                        card.innerHTML = `
+                            <h2 class="document-title">${doc.title}</h2>
+                            <p class="document-content">${doc.content}</p>
+                        `;
+                        resultsContainer.appendChild(card);
                     });
-                });
-
-            } catch (error) {
-                // Log the specific error to the console for debugging
-                console.error('Error during search:', error);
-                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Đã xảy ra lỗi khi thực hiện tìm kiếm. Vui lòng kiểm tra console để biết chi tiết.</p>';
-            }
-        }
-
-        /**
-         * Displays a modal with the full content of a document.
-         * @param {string} title - The title of the document.
-         * @param {string} content - The full content of the document.
-         */
-        function showFullContentModal(title, content) {
-            // Create modal elements
-            const modalOverlay = document.createElement('div');
-            modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-            modalOverlay.id = 'fullContentModalOverlay';
-
-            const modalContent = document.createElement('div');
-            modalContent.className = 'bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative';
-
-            const modalTitle = document.createElement('h2');
-            modalTitle.className = 'text-2xl font-bold text-gray-800 mb-4 pr-10'; // Added pr-10 for close button spacing
-            modalTitle.textContent = title;
-
-            const modalBody = document.createElement('p');
-            modalBody.className = 'text-gray-700 whitespace-pre-wrap'; // Use pre-wrap to preserve formatting
-            modalBody.textContent = content;
-
-            const closeButton = document.createElement('button');
-            closeButton.className = 'absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold';
-            closeButton.innerHTML = '&times;'; // 'x' icon
-
-            // Append elements
-            modalContent.appendChild(modalTitle);
-            modalContent.appendChild(closeButton);
-            modalContent.appendChild(modalBody);
-            modalOverlay.appendChild(modalContent);
-            document.body.appendChild(modalOverlay);
-
-            // Close modal on button click or overlay click
-            closeButton.addEventListener('click', () => modalOverlay.remove());
-            modalOverlay.addEventListener('click', (event) => {
-                if (event.target === modalOverlay) {
-                    modalOverlay.remove();
                 }
-            });
+            }, 500); // Độ trễ 0.5 giây
         }
 
+        // Gắn sự kiện cho nút tìm kiếm
+        document.getElementById('searchButton').addEventListener('click', searchDocuments);
 
-        // Event listeners
-        searchButton.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', (event) => {
+        // Gắn sự kiện cho phím Enter trong ô input
+        document.getElementById('searchInput').addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
-                performSearch();
+                searchDocuments();
             }
         });
 
-        // Fetch data and initialize search on window load
-        window.onload = async () => {
-            try {
-                // Fetch your data.json file
-                // IMPORTANT: Make sure data.json is in the same directory as this HTML file,
-                // or provide the correct path.
-                const response = await fetch('./data.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                await initializeSearch(data);
-            } catch (error) {
-                console.error('Error fetching data.json:', error);
-                if (loadingOverlay) {
-                    loadingOverlay.style.display = 'none'; // Hide loading overlay on error
-                }
-                resultsDiv.innerHTML = '<p class="text-red-600 text-center">Không thể tải tệp dữ liệu (data.json). Vui lòng đảm bảo tệp tồn tại và đúng định dạng.</p>';
-            }
-        };
+        // Tải tài liệu khi trang được tải
+        window.onload = loadDocuments;
     </script>
 </body>
 </html>
-```javascript
-// This file is intentionally left blank.
-// All JavaScript is embedded directly in the HTML for simplicity in a single-file GitHub Pages setup.
